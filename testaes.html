@@ -1,0 +1,163 @@
+<html>
+
+<script type="text/javascript" src="js/jsaes-0.1/jsaes.js"></script>
+<script type="text/javascript" src="js/sha256.js"></script>
+<script type="text/javascript" src="js/base64.js"></script>
+
+<script>
+
+function unpack(data)
+{
+	var str = "";
+	for(var x = 0; x < data.length; x++)
+	{
+		str += String.fromCharCode(data[x]);
+	}
+	return str;
+}
+
+
+function pack(msg)
+{
+	var block_count = Math.floor(msg.length / 16)+1;
+	var data = new Array(block_count * 16);
+	var block = new Array(16);
+	var cx = 0;
+	for(var x = 0; x < block_count; x++)
+	{	
+		
+		for(var i = 0; i < 16; i++)
+		{
+		  block[i] = (cx < msg.length)? msg.charCodeAt(cx) : 3;
+		  cx++;
+		}
+
+		for(var i = 0; i < 16; i++)
+		  data[i+x*16] = block[i];
+	}
+	return data;
+}
+
+
+
+function hash_password(password)
+{
+	var key_val = Sha256.hash(password);
+	var key = new Array(32);
+	for(var i = 0; i < 32; i++)
+	{
+	  key[i] = key_val.charCodeAt(i);
+	}	
+	return key;
+}
+
+function encode(msg,password)
+{
+	var block_count = Math.floor(msg.length / 16)+1;
+	var data = new Array(block_count * 16);
+	var block = new Array(16);
+	
+
+	var cx = 0;
+	for(var x = 0; x < block_count; x++)
+	{	
+		
+		for(var i = 0; i < 16; i++)
+		{
+		  block[i] = (cx < msg.length)? msg.charCodeAt(cx) : 3;
+		  cx++;
+		}
+		
+
+		AES_Init();
+		var key = hash_password(password);
+		AES_ExpandKey(key);
+		AES_Encrypt(block, key);
+		AES_Done();
+
+		
+		for(var i = 0; i < 16; i++)
+		  data[i+x*16] = block[i];
+	}
+	
+	return data;
+}
+
+
+function decode(data,password)
+{	
+	var msg = "";	
+	var block_count = Math.floor(data.length / 16)+1;
+	var block = new Array(16);
+	
+	var cx = 0;
+	for(var x = 0; x < block_count; x++)
+	{
+		for(var i = 0; i < 16; i++)
+		{
+		  block[i] = data[cx++];
+		  
+		}
+
+		AES_Init();
+		var key = hash_password(password);
+		AES_ExpandKey(key);
+ 		AES_Decrypt(block, key);
+		AES_Done();
+
+		for(var i = 0; i < 16; i++)
+		{
+		  if(block[i] == 3) return msg;
+		  msg += String.fromCharCode(block[i]);
+		}
+	}
+
+	
+	return msg;
+}
+
+function init()
+{
+
+}
+
+function btn_encode()
+{
+	var password = document.getElementById('password').value;
+	var msg = document.getElementById('inputtext').value;
+	var data = encode(msg,password);
+	document.getElementById('encodedtext').value = Base64.encode(unpack(data));
+}
+
+function btn_decode()
+{
+	var password = document.getElementById('password').value;
+	var data = pack(Base64.decode(document.getElementById('encodedtext').value));
+	document.getElementById('decodedtext').value = decode(data,password);
+}
+
+</script>
+
+<body onload="init()">
+
+<textarea id="password" rows="1" cols="50">
+password
+</textarea> <br>
+
+<textarea id="inputtext" rows="4" cols="50">
+secret message
+</textarea> 
+<button onclick="btn_encode()">encode</button>
+<br>
+
+<textarea id="encodedtext" rows="4" cols="50"></textarea> 
+<button onclick="btn_decode()">decode</button>
+
+<br>
+
+<textarea id="decodedtext" rows="4" cols="50"></textarea>
+
+
+</body>
+
+</html>
